@@ -1,0 +1,47 @@
+# Compilaciones de Gradle y Android (incluye app/build)
+.gradle/
+build/
+**/build/
+.kotlin/
+
+# APK, bundles y archivos generados
+*.apk
+*.ap_
+*.aab
+*.aar
+*.dex
+*.class
+bin/
+gen/
+out/
+
+# Configuración local de Android Studio (ruta del SDK en esta máquina)
+local.properties
+*.iml
+
+# Estado local del IDE (se regenera al abrir el proyecto)
+.idea/
+
+# NDK y capturas del emulador
+.externalNativeBuild/
+.cxx/
+captures/
+
+# Firmas locales (no compartir claves)
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+
+# Configuración de Firebase de este proyecto (cada entorno usa la suya)
+google-services.json
+
+# Logs, volcados y archivos temporales del sistema
+*.log
+*.hprof
+*.tmp
+hs_err_pid*
+replay_pid*
+.DS_Store
+Thumbs.db
+desktop.ini
