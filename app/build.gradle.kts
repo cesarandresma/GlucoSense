@@ -67,5 +67,6 @@ dependencies {
     implementation("com.google.firebase:firebase-auth-ktx:23.2.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
     implementation("com.google.firebase:firebase-firestore")
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
 
 }
