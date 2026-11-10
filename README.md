@@ -1,29 +1,25 @@
-Android Application
 
-Description
+# GlucoSense
 
-Android application developed to .
+Android application developed for glucose data management and monitoring.
 
-Technologies
+## Technologies
+- Android Studio
+- Kotlin
+- Firebase
 
-Android Studio
+## Features
+- User authentication.
+- Data management.
+- User-friendly interface.
 
-Kotlin / Java
+## Installation
+1. Download the APK from the Releases section.
+2. Install the APK on your Android device.
+3. Open GlucoSense and sign in.
 
-Firebase
-
-Features
-
-User authentication.
-
-Data management.
-
-User-friendly interface.
-
-Version
-
+## Version
 v1.0.0
 
-Author
-
-Cesar Minaya 
+## Author
+Cesar Minaya
