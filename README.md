@@ -8,7 +8,7 @@ Technologies
 
 Android Studio
 
-Kotlin 
+Kotlin / Java
 
 Firebase
 
