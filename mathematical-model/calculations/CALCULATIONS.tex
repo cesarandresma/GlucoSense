@@ -1,0 +1,257 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{siunitx}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{hyperref}
+
+\geometry{margin=2.5cm}
+\sisetup{output-decimal-marker = {.}, per-mode = symbol}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
+
+\title{Optical Sensing Circuit Component Calculations\\
+\large Glucometer Project}
+\author{}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Objective}
+This document presents the calculations used to size the LED current-limiting
+resistor and the transimpedance amplifier feedback network for two emitter
+and photodiode combinations:
+\begin{itemize}
+  \item TSAL6100 LED with BPV10NF photodiode.
+  \item SFH 4544 LED with QSB34GR photodiode.
+\end{itemize}
+
+The supplied PDF schematic is used as a visual reference for the circuit
+architecture and the components shown. The numerical results below are
+calculated from the parameter values specified for each combination.
+
+\section{Design Equations}
+
+\subsection{LED Current-Limiting Resistor}
+The resistor connected in series with the LED is calculated as:
+\begin{equation}
+  R_3 = \frac{V_A - V_L}{I_{LED}},
+  \label{eq:rled}
+\end{equation}
+where $V_A$ is the supply voltage, $V_L$ is the LED forward voltage, and
+$I_{LED}$ is the desired LED current.
+
+\subsection{Total Input Capacitance}
+The total capacitance considered at the amplifier input is:
+\begin{equation}
+  C_{in} = C_{pd} + C_{inA},
+  \label{eq:cin}
+\end{equation}
+where
+\begin{equation}
+  C_{inA} = C_{diff} + C_{cm}.
+\end{equation}
+Here, $C_{pd}$ is the photodiode junction capacitance, $C_{diff}$ is the
+operational amplifier differential input capacitance, and $C_{cm}$ is the
+common-mode capacitance at the inverting input. The calculations use the
+provided combined value $C_{inA}$.
+
+\subsection{Feedback Resistor}
+For a maximum photodiode current $I_{pd}$ and a target output voltage $V_o$,
+the feedback resistor is estimated using:
+\begin{equation}
+  R_4 = \frac{V_o}{I_{pd}}.
+  \label{eq:rf}
+\end{equation}
+
+\subsection{Compensation Capacitor}
+The estimated feedback capacitor for the stated stability condition is:
+\begin{equation}
+  C_1 = \sqrt{\frac{C_{in}}{2\pi R_4\,GBW}},
+  \label{eq:cf}
+\end{equation}
+where $GBW$ is the operational amplifier gain-bandwidth product.
+
+\subsection{Transfer Function}
+Using the transfer-function expression provided:
+\begin{equation}
+  V_{out}(s) =
+  I_{pd}\left(\frac{R_4}{1+sR_4C_1}\right).
+  \label{eq:transfer}
+\end{equation}
+This is the magnitude-form expression specified for the transimpedance
+stage. In an inverting transimpedance configuration, the output sign depends
+on the current convention and photodiode connection.
+
+\section{Case 1: TSAL6100 and BPV10NF}
+
+\subsection{Design Parameters}
+\begin{table}[h!]
+\centering
+\begin{tabular}{>{\raggedright\arraybackslash}p{7cm}r}
+\toprule
+Parameter & Value \\
+\midrule
+Supply voltage, $V_A$ & \SI{3.3}{\volt}\\
+LED forward voltage, $V_L$ & \SI{1.35}{\volt}\\
+LED current, $I_{LED}$ & \SI{30}{\milli\ampere}\\
+Photodiode capacitance, $C_{pd}$ & \SI{11}{\pico\farad}\\
+Amplifier input capacitance, $C_{inA}$ & \SI{25}{\pico\farad}\\
+Gain-bandwidth product, $GBW$ & \SI{2.5}{\mega\hertz}\\
+Target output voltage, $V_o$ & \SI{1.65}{\volt}\\
+Maximum photodiode current, $I_{pd}$ & \SI{60}{\micro\ampere}\\
+\bottomrule
+\end{tabular}
+\caption{Parameters used for Case 1.}
+\end{table}
+
+\subsection{Calculation of $R_3$}
+Substituting the values into Equation~\eqref{eq:rled}:
+\begin{align}
+  R_3 &= \frac{\SI{3.3}{\volt}-\SI{1.35}{\volt}}
+               {\SI{30}{\milli\ampere}}\\
+      &= \frac{\SI{1.95}{\volt}}{\SI{0.03}{\ampere}}\\
+      &= \boxed{\SI{65}{\ohm}}.
+\end{align}
+A nearby standard resistor value is \SI{68}{\ohm}. With this value, the
+approximate LED current is:
+\begin{equation}
+  I_{LED} = \frac{\SI{3.3}{\volt}-\SI{1.35}{\volt}}
+                 {\SI{68}{\ohm}}
+           \approx \SI{28.68}{\milli\ampere}.
+\end{equation}
+
+\subsection{Calculation of $C_{in}$}
+\begin{align}
+  C_{in} &= C_{pd}+C_{inA}\\
+         &= \SI{11}{\pico\farad}+\SI{25}{\pico\farad}\\
+         &= \boxed{\SI{36}{\pico\farad}}.
+\end{align}
+
+\subsection{Calculation of $R_4$}
+\begin{align}
+  R_4 &= \frac{\SI{1.65}{\volt}}{\SI{60}{\micro\ampere}}\\
+      &= \boxed{\SI{27.5}{\kilo\ohm}}.
+\end{align}
+
+\subsection{Calculation of $C_1$}
+\begin{align}
+ C_1 &=
+ \sqrt{\frac{\SI{36e-12}{\farad}}
+ {2\pi(\SI{27.5e3}{\ohm})(\SI{2.5e6}{\hertz})}}\\
+ &= \boxed{\SI{9.13}{\pico\farad}}.
+\end{align}
+A nearby standard value is \SI{10}{\pico\farad}.
+
+\section{Case 2: SFH 4544 and QSB34GR}
+
+\subsection{Design Parameters}
+\begin{table}[h!]
+\centering
+\begin{tabular}{>{\raggedright\arraybackslash}p{7cm}r}
+\toprule
+Parameter & Value \\
+\midrule
+Supply voltage, $V_A$ & \SI{3.3}{\volt}\\
+LED forward voltage, $V_L$ & \SI{1.6}{\volt}\\
+LED current, $I_{LED}$ & \SI{100}{\milli\ampere}\\
+Photodiode capacitance, $C_{pd}$ & \SI{25}{\pico\farad}\\
+Amplifier input capacitance, $C_{inA}$ & \SI{25}{\pico\farad}\\
+Gain-bandwidth product, $GBW$ & \SI{2.5}{\mega\hertz}\\
+Target output voltage, $V_o$ & \SI{1.65}{\volt}\\
+Maximum photodiode current, $I_{pd}$ & \SI{37}{\micro\ampere}\\
+\bottomrule
+\end{tabular}
+\caption{Parameters used for Case 2.}
+\end{table}
+
+\subsection{Calculation of $R_3$}
+\begin{align}
+  R_3 &= \frac{\SI{3.3}{\volt}-\SI{1.6}{\volt}}
+               {\SI{100}{\milli\ampere}}\\
+      &= \frac{\SI{1.7}{\volt}}{\SI{0.1}{\ampere}}\\
+      &= \boxed{\SI{17}{\ohm}}.
+\end{align}
+Therefore, for the specified values, the result is not \SI{68}{\ohm}.
+Using a \SI{68}{\ohm} resistor would result in an estimated current of:
+\begin{equation}
+  I_{LED} = \frac{\SI{1.7}{\volt}}{\SI{68}{\ohm}}
+           \approx \SI{25}{\milli\ampere}.
+\end{equation}
+
+\subsection{Calculation of $C_{in}$}
+\begin{align}
+  C_{in} &= C_{pd}+C_{inA}\\
+         &= \SI{25}{\pico\farad}+\SI{25}{\pico\farad}\\
+         &= \boxed{\SI{50}{\pico\farad}}.
+\end{align}
+
+\subsection{Calculation of $R_4$}
+\begin{align}
+  R_4 &= \frac{\SI{1.65}{\volt}}{\SI{37}{\micro\ampere}}\\
+      &\approx \boxed{\SI{44.59}{\kilo\ohm}}.
+\end{align}
+
+\subsection{Calculation of $C_1$}
+\begin{align}
+ C_1 &=
+ \sqrt{\frac{\SI{50e-12}{\farad}}
+ {2\pi(\SI{44.5946e3}{\ohm})(\SI{2.5e6}{\hertz})}}\\
+ &\approx \boxed{\SI{8.45}{\pico\farad}}.
+\end{align}
+Nearby standard values include \SI{8.2}{\pico\farad} and
+\SI{10}{\pico\farad}; the final choice should be validated by checking
+the stability and response of the actual circuit.
+
+\section{Summary of Results}
+\begin{table}[h!]
+\centering
+\begin{tabular}{lcc}
+\toprule
+Parameter & TSAL6100 / BPV10NF & SFH 4544 / QSB34GR\\
+\midrule
+Calculated $R_3$ & \SI{65}{\ohm} & \SI{17}{\ohm}\\
+Suggested standard $R_3$ & \SI{68}{\ohm} & \SI{17}{\ohm}\\
+$C_{in}$ & \SI{36}{\pico\farad} & \SI{50}{\pico\farad}\\
+Calculated $R_4$ & \SI{27.5}{\kilo\ohm} & \SI{44.59}{\kilo\ohm}\\
+Calculated $C_1$ & \SI{9.13}{\pico\farad} & \SI{8.45}{\pico\farad}\\
+\bottomrule
+\end{tabular}
+\caption{Component calculation summary for both configurations.}
+\end{table}
+
+\section{Reference Schematic}
+The supplied PDF schematic shows an optical sensing stage using an
+LMP7704MA operational amplifier, a TSAL6100 emitter LED, a BPV10NF
+photodiode, and feedback components identified as $R_4$ and $C_1$.
+The schematic includes reference values of \SI{68}{\ohm} for the LED
+resistor, \SI{27}{\kilo\ohm} for $R_4$, and \SI{10}{\pico\farad} for
+$C_1$. These values are close to the calculated results for Case 1.
+
+The PDF is used as a reference for the drawn implementation. It does not
+confirm the electrical characteristics of the second combination,
+SFH 4544/QSB34GR.
+
+\section{Implementation Considerations}
+\begin{itemize}
+  \item Verify the actual LED forward voltage at the selected operating
+        current using the component datasheet.
+  \item Ensure that the \SI{3.3}{\volt} supply and the LED driver or
+        transistor can provide the required current. In particular,
+        \SI{100}{\milli\ampere} must not be assumed to be available from
+        an ESP32 GPIO pin.
+  \item Select the power rating of $R_3$ based on
+        $P=I_{LED}^{2}R_3$, including an appropriate thermal margin.
+  \item Check that the maximum photodiode current and output voltage do
+        not drive the operational amplifier into saturation.
+  \item The equation for $C_1$ provides a design estimate. Stability,
+        bandwidth, and transient response should be verified using the
+        actual circuit, component datasheets, and measurements.
+\end{itemize}
+
+\end{document}
