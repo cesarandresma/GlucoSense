@@ -1,0 +1,63 @@
+name: Compilar APKs
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Instalar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Plataforma Android 36
+        run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Restaurar google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "build_app=false" >> "$GITHUB_ENV"
+            echo "Sin el secreto GOOGLE_SERVICES_JSON solo se compila Registro BLE."
+          else
+            printf '%s\n' "$GOOGLE_SERVICES_JSON" > app/google-services.json
+            echo "build_app=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Compilar Registro BLE
+        run: chmod +x ./gradlew && ./gradlew :registro:assembleDebug --stacktrace
+
+      - name: Compilar GlucoSense
+        if: env.build_app == 'true'
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Preparar APKs
+        run: |
+          mkdir -p dist
+          cp registro/build/outputs/apk/debug/registro-debug.apk dist/RegistroBLE.apk
+          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk dist/GlucoSense.apk
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apks
+          path: dist/*.apk
+          if-no-files-found: error
+
+      - name: Publicar en la Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.apk

@@ -24,4 +24,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Auth"
 include(":app")
+include(":registro")
  
