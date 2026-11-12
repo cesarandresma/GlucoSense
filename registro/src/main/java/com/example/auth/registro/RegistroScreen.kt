@@ -17,9 +17,7 @@ import android.content.pm.PackageManager
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -56,6 +54,7 @@ private val SERVICE_UUID: UUID = UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24
 private val CHAR_UUID: UUID = UUID.fromString("6e400003-b5a3-f393-e0a9-e50e24dcca9e")
 private val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 private const val DEVICE_NAME = "ESP32_Temp"
+private const val REQUESTED_MTU = 247
 
 private fun hasBlePermissions(context: Context): Boolean =
     ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) ==
@@ -80,6 +79,7 @@ fun RegistroScreen(onRequestPermissions: () -> Unit) {
 
     var status by remember { mutableStateOf("Desconectado") }
     var current by remember { mutableStateOf("--") }
+    var linkMtu by remember { mutableStateOf(23) }
     var isScanning by remember { mutableStateOf(false) }
     var gatt by remember { mutableStateOf<BluetoothGatt?>(null) }
     val readings = remember { mutableStateListOf<Measurement>() }
@@ -89,32 +89,36 @@ fun RegistroScreen(onRequestPermissions: () -> Unit) {
         if (Looper.myLooper() == Looper.getMainLooper()) block() else mainHandler.post(block)
     }
 
-    fun store(raw: String) {
-        val value = raw.trim().trim('\u0000')
-        if (value.isEmpty()) return
-        val now = Date()
-        val measurement = Measurement(
-            date = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(now),
-            time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(now),
-            value = value,
-        )
-        onMain {
-            current = value
+    val packetAssembler = remember {
+        PacketAssembler { raw ->
+            val value = raw.trim()
+            if (value.isEmpty()) return@PacketAssembler
+            val now = Date()
+            val measurement = MeasurementWorkbook.parse(
+                date = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(now),
+                time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(now),
+                raw = value,
+            )
+            current = measurement.promGen.ifEmpty { value }
             readings.add(0, measurement)
             MeasurementWorkbook.write(file, readings.asReversed())
-            status = "Conectado a ESP32 · guardado"
+            status = "Conectado a ESP32 · guardado · MTU $linkMtu"
         }
+    }
+
+    fun store(raw: String) {
+        onMain { packetAssembler.append(raw) }
     }
 
     val gattCallback = remember {
         object : BluetoothGattCallback() {
             override fun onConnectionStateChange(g: BluetoothGatt, st: Int, newState: Int) {
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
-                    onMain { status = "Conectado, descubriendo servicios..." }
-                    if (hasBlePermissions(context)) {
-                        g.discoverServices()
-                    } else {
+                    onMain { status = "Conectado, ampliando MTU..." }
+                    if (!hasBlePermissions(context)) {
                         onMain { status = "Permiso Bluetooth denegado" }
+                    } else if (!g.requestMtu(REQUESTED_MTU)) {
+                        g.discoverServices()
                     }
                 } else {
                     onMain {
@@ -122,6 +126,13 @@ fun RegistroScreen(onRequestPermissions: () -> Unit) {
                         current = "--"
                         gatt = null
                     }
+                }
+            }
+
+            override fun onMtuChanged(g: BluetoothGatt, mtu: Int, status: Int) {
+                onMain { linkMtu = mtu }
+                if (hasBlePermissions(context)) {
+                    g.discoverServices()
                 }
             }
 
@@ -142,7 +153,7 @@ fun RegistroScreen(onRequestPermissions: () -> Unit) {
                     return
                 }
                 g.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
-                onMain { status = "Conectado a ESP32" }
+                onMain { status = "Conectado a ESP32 · MTU $linkMtu" }
             }
 
             override fun onCharacteristicChanged(
@@ -317,13 +328,19 @@ fun RegistroScreen(onRequestPermissions: () -> Unit) {
                             .fillMaxWidth()
                             .padding(vertical = 4.dp),
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(record.value, style = MaterialTheme.typography.bodyLarge)
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = "${record.promGen.ifEmpty { "--" }} ${record.unidad}".trim(),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Text(
+                                text = "PROM1 ${record.prom1}   MAX1 ${record.max1}   MIN1 ${record.min1}",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            Text(
+                                text = "PROM2 ${record.prom2}   MAX2 ${record.max2}   MIN2 ${record.min2}",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                             Text(
                                 text = "${record.date} ${record.time}",
                                 style = MaterialTheme.typography.bodySmall,
@@ -333,6 +350,31 @@ fun RegistroScreen(onRequestPermissions: () -> Unit) {
                     }
                 }
             }
+        }
+    }
+}
+
+private class PacketAssembler(
+    private val onMessage: (String) -> Unit,
+) {
+    private val buffer = StringBuilder()
+    private val handler = Handler(Looper.getMainLooper())
+    private val flushIncomplete = Runnable {
+        val text = buffer.toString().trim()
+        buffer.clear()
+        if (text.isNotEmpty()) onMessage(text)
+    }
+
+    fun append(chunk: String) {
+        buffer.append(chunk.trim('\u0000'))
+        if ("UNIDAD=" in buffer) {
+            handler.removeCallbacks(flushIncomplete)
+            val text = buffer.toString().trim()
+            buffer.clear()
+            onMessage(text)
+        } else {
+            handler.removeCallbacks(flushIncomplete)
+            handler.postDelayed(flushIncomplete, 400)
         }
     }
 }
